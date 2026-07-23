@@ -105,3 +105,12 @@ class MongoEvaluationRepository(IEvaluationRepository):
             filtered.append(EvaluationResult(**item))
 
         return filtered[skip : skip + limit]
+
+    async def delete(self, evaluation_id: str) -> None:
+        collection = self._collection
+        if collection is not None:
+            try:
+                await collection.delete_one({"_id": evaluation_id})
+            except Exception:
+                pass
+        self._in_memory_store.pop(evaluation_id, None)

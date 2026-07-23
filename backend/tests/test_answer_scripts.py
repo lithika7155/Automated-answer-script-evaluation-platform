@@ -5,17 +5,17 @@ from httpx import AsyncClient
 @pytest.mark.anyio
 async def test_answer_script_lifecycle(async_client: AsyncClient):
     user_reg = {
-        "email": "student_upload@example.com",
+        "email": "faculty_upload@example.com",
         "password": "password123",
-        "full_name": "Upload Student",
-        "role": "student",
+        "full_name": "Faculty User",
+        "role": "faculty",
     }
     reg_res = await async_client.post("/api/v1/auth/register", json=user_reg)
     assert reg_res.status_code == 201
 
     login_res = await async_client.post(
         "/api/v1/auth/login",
-        json={"email": "student_upload@example.com", "password": "password123"},
+        json={"email": "faculty_upload@example.com", "password": "password123"},
     )
     token = login_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
@@ -23,7 +23,7 @@ async def test_answer_script_lifecycle(async_client: AsyncClient):
     invalid_file = ("script.txt", b"text content", "text/plain")
     res_invalid = await async_client.post(
         "/api/v1/answer-scripts/upload",
-        data={"exam_id": "EXAM_101"},
+        data={"exam_id": "EXAM_101", "student_id": "STU_101"},
         files={"file": invalid_file},
         headers=headers,
     )
@@ -34,7 +34,7 @@ async def test_answer_script_lifecycle(async_client: AsyncClient):
     valid_pdf = ("student_submission.pdf", pdf_content, "application/pdf")
     upload_res = await async_client.post(
         "/api/v1/answer-scripts/upload",
-        data={"exam_id": "EXAM_101"},
+        data={"exam_id": "EXAM_101", "student_id": "STU_101"},
         files={"file": valid_pdf},
         headers=headers,
     )
@@ -49,7 +49,7 @@ async def test_answer_script_lifecycle(async_client: AsyncClient):
     valid_png = ("answer_page1.png", png_content, "image/png")
     upload_png_res = await async_client.post(
         "/api/v1/answer-scripts/upload",
-        data={"exam_id": "EXAM_101"},
+        data={"exam_id": "EXAM_101", "student_id": "STU_102"},
         files={"file": valid_png},
         headers=headers,
     )
@@ -88,3 +88,44 @@ async def test_answer_script_lifecycle(async_client: AsyncClient):
         headers=headers,
     )
     assert get_after_delete.status_code == 404
+
+
+@pytest.mark.anyio
+async def test_faculty_upload_with_question_paper_and_answer_key(async_client: AsyncClient):
+    user_reg = {
+        "email": "faculty_qp@example.com",
+        "password": "password123",
+        "full_name": "Faculty QP User",
+        "role": "faculty",
+    }
+    await async_client.post("/api/v1/auth/register", json=user_reg)
+    login_res = await async_client.post(
+        "/api/v1/auth/login",
+        json={"email": "faculty_qp@example.com", "password": "password123"},
+    )
+    token = login_res.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    pdf_content = b"%PDF-1.4 student answer script"
+    qp_content = b"%PDF-1.4 question paper content"
+    ak_content = b"%PDF-1.4 answer key content"
+
+    files = {
+        "file": ("student_ans.pdf", pdf_content, "application/pdf"),
+        "question_paper": ("qp_exam.pdf", qp_content, "application/pdf"),
+        "answer_key": ("ak_exam.pdf", ak_content, "application/pdf"),
+    }
+    data = {"exam_id": "EXAM_QP_101", "student_id": "STU_QP_101"}
+
+    upload_res = await async_client.post(
+        "/api/v1/answer-scripts/upload",
+        data=data,
+        files=files,
+        headers=headers,
+    )
+    assert upload_res.status_code == 201
+    res_json = upload_res.json()
+    assert res_json["question_paper_filename"] == "qp_exam.pdf"
+    assert res_json["answer_key_filename"] == "ak_exam.pdf"
+    assert res_json["original_filename"] == "student_ans.pdf"
+

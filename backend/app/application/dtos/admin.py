@@ -6,6 +6,7 @@ class AdminDashboardDTO(BaseModel):
     total_students: int
     total_faculty: int
     total_admins: int
+    total_exams: int = 0
     total_answer_scripts: int
     total_evaluations: int
     overall_average_percentage: float

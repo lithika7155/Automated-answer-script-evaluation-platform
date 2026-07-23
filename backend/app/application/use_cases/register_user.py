@@ -10,13 +10,14 @@ class RegisterUserUseCase:
         self.user_repo = user_repo
 
     async def execute(self, dto: UserRegisterDTO) -> UserResponseDTO:
-        existing_user = await self.user_repo.get_by_email(dto.email)
+        normalized_email = dto.email.lower().strip()
+        existing_user = await self.user_repo.get_by_email(normalized_email)
         if existing_user:
-            raise UserAlreadyExistsException(dto.email)
+            raise UserAlreadyExistsException(normalized_email)
 
         hashed_password = PasswordHasher.hash_password(dto.password)
         new_user = User(
-            email=dto.email,
+            email=normalized_email,
             hashed_password=hashed_password,
             full_name=dto.full_name,
             role=dto.role,

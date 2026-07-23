@@ -33,7 +33,6 @@ export default function StudentDashboard() {
           <h1>Welcome back, <span className="grad-text">{user?.full_name?.split(' ')[0]}</span> 👋</h1>
           <p className="text-muted mt-sm">Here&apos;s your evaluation overview</p>
         </div>
-        <Link to="/upload" id="upload-cta-btn" className="btn btn-primary">📤 Upload Script</Link>
       </div>
 
       <div className="stats-grid">
@@ -70,8 +69,7 @@ export default function StudentDashboard() {
         <div className="empty-state card">
           <div className="empty-icon">📋</div>
           <h3>No evaluations yet</h3>
-          <p>Upload your first answer script to get AI-powered feedback.</p>
-          <Link to="/upload" className="btn btn-primary mt-md">📤 Upload Now</Link>
+          <p>Your evaluation results will appear here once graded by faculty.</p>
         </div>
       ) : (
         <div className="table-wrapper">
@@ -79,10 +77,10 @@ export default function StudentDashboard() {
             <thead>
               <tr>
                 <th>Exam ID</th>
-                <th>Score</th>
+                <th>Total Marks</th>
                 <th>Percentage</th>
                 <th>Grade</th>
-                <th>Status</th>
+                <th>Evaluation Status</th>
                 <th>Actions</th>
               </tr>
             </thead>

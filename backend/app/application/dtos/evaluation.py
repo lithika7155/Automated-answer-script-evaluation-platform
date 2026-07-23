@@ -37,6 +37,8 @@ class EvaluationResultResponseDTO(BaseModel):
     total_max_marks: float
     total_score: float
     percentage: float
+    grade: Optional[str] = None
+    pass_fail_status: Optional[str] = None
     question_evaluations: List[QuestionEvaluationDTO]
     overall_feedback: str
     evaluated_at: datetime

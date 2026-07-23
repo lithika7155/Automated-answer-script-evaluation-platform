@@ -22,3 +22,7 @@ class AnswerScript(BaseModel):
     file_size_bytes: int
     upload_time: datetime = Field(default_factory=datetime.utcnow)
     status: AnswerScriptStatus = AnswerScriptStatus.UPLOADED
+    question_paper_filename: Optional[str] = None
+    question_paper_path: Optional[str] = None
+    answer_key_filename: Optional[str] = None
+    answer_key_path: Optional[str] = None

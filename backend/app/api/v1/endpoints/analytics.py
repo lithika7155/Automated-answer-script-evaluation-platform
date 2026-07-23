@@ -1,8 +1,8 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse, Response
 
-from app.api.dependencies.auth import get_current_active_user, get_user_repository
+from app.api.dependencies.auth import get_current_active_user, get_user_repository, require_roles
 from app.application.dtos.analytics import (
     ExamAnalyticsDTO,
     LeaderboardEntryDTO,
@@ -13,10 +13,11 @@ from app.application.use_cases.export_results import ExportResultsUseCase
 from app.application.use_cases.get_exam_analytics import GetExamAnalyticsUseCase
 from app.application.use_cases.get_leaderboard import GetLeaderboardUseCase
 from app.application.use_cases.get_student_results import GetStudentResultsUseCase
+from app.application.use_cases.list_evaluations import ListEvaluationsUseCase
 from app.domain.exceptions.evaluation import EvaluationNotFoundException
 from app.domain.interfaces.evaluation_repository import IEvaluationRepository
 from app.domain.interfaces.user_repository import IUserRepository
-from app.domain.models.user import User
+from app.domain.models.user import User, UserRole
 from app.infrastructure.database.mongodb import get_mongo_db
 from app.infrastructure.repositories.mongo_evaluation_repository import (
     MongoEvaluationRepository,
@@ -140,3 +141,50 @@ async def export_pdf(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
         )
+
+
+@router.get(
+    "/marks-matrix",
+    status_code=status.HTTP_200_OK,
+    summary="Get marks matrix for all evaluated students (Faculty/Admin) — includes student name, roll number, question-wise marks, total marks, grade, and pass/fail",
+)
+async def get_marks_matrix(
+    exam_id: Optional[str] = None,
+    current_user: User = Depends(require_roles([UserRole.FACULTY, UserRole.ADMIN])),
+    eval_repo: IEvaluationRepository = Depends(get_evaluation_repository),
+    user_repo: IUserRepository = Depends(get_user_repository),
+) -> List[Dict[str, Any]]:
+    use_case = ListEvaluationsUseCase(eval_repository=eval_repo)
+    evaluations = await use_case.execute(exam_id=exam_id, limit=500)
+
+    # Build student lookup map {student_id -> full_name}
+    all_users = await user_repo.list_all(skip=0, limit=1000)
+    user_map: Dict[str, str] = {u.id: u.full_name for u in all_users}
+
+    matrix = []
+    for ev in evaluations:
+        q_marks = [
+            {
+                "question_number": q.question_number,
+                "marks_obtained": q.marks_obtained,
+                "max_marks": q.max_marks,
+            }
+            for q in ev.question_evaluations
+        ]
+        matrix.append(
+            {
+                "evaluation_id": ev.id,
+                "student_id": ev.student_id,
+                "student_name": user_map.get(ev.student_id, ev.student_id),
+                "exam_id": ev.exam_id,
+                "question_marks": q_marks,
+                "total_score": ev.total_score,
+                "total_max_marks": ev.total_max_marks,
+                "percentage": ev.percentage,
+                "grade": ev.grade,
+                "pass_fail_status": ev.pass_fail_status,
+                "evaluated_at": ev.evaluated_at.isoformat() if ev.evaluated_at else None,
+            }
+        )
+    return matrix
+

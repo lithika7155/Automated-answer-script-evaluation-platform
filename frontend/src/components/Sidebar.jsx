@@ -5,13 +5,12 @@ import './Sidebar.css'
 const NAV_ITEMS = {
   student: [
     { to: '/dashboard', icon: '🏠', label: 'Dashboard' },
-    { to: '/upload', icon: '📤', label: 'Upload Script' },
     { to: '/results', icon: '📊', label: 'My Results' },
     { to: '/leaderboard', icon: '🏆', label: 'Leaderboard' },
   ],
   faculty: [
     { to: '/faculty', icon: '🏠', label: 'Dashboard' },
-    { to: '/faculty/scripts', icon: '📄', label: 'Answer Scripts' },
+    { to: '/upload', icon: '📤', label: 'Upload & Grade' },
     { to: '/faculty/analytics', icon: '📈', label: 'Analytics' },
   ],
   admin: [

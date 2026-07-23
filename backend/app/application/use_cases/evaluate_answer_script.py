@@ -8,6 +8,7 @@ from app.domain.interfaces.answer_script_repository import IAnswerScriptReposito
 from app.domain.interfaces.evaluation_repository import IEvaluationRepository
 from app.domain.models.answer_script import AnswerScriptStatus
 from app.domain.models.evaluation import EvaluationResult, QuestionEvaluation
+from app.domain.services.grading_service import GradingService
 
 
 class EvaluateAnswerScriptUseCase:
@@ -78,6 +79,7 @@ class EvaluateAnswerScriptUseCase:
             script.status = AnswerScriptStatus.EVALUATED
             await self.script_repository.create(script)
 
+        grade, pf_status = GradingService.calculate_grade_and_status(saved_result.percentage)
         return EvaluationResultResponseDTO(
             id=saved_result.id,
             answer_script_id=saved_result.answer_script_id,
@@ -86,6 +88,8 @@ class EvaluateAnswerScriptUseCase:
             total_max_marks=saved_result.total_max_marks,
             total_score=saved_result.total_score,
             percentage=saved_result.percentage,
+            grade=grade.value,
+            pass_fail_status=pf_status.value,
             question_evaluations=[
                 QuestionEvaluationDTO(
                     question_number=q.question_number,

@@ -14,3 +14,5 @@ class AnswerScriptResponseDTO(BaseModel):
     file_size_bytes: int
     upload_time: datetime
     status: AnswerScriptStatus
+    question_paper_filename: Optional[str] = None
+    answer_key_filename: Optional[str] = None

@@ -10,7 +10,8 @@ class AuthenticateUserUseCase:
         self.user_repo = user_repo
 
     async def execute(self, dto: UserLoginDTO) -> TokenDTO:
-        user = await self.user_repo.get_by_email(dto.email)
+        normalized_email = dto.email.lower().strip()
+        user = await self.user_repo.get_by_email(normalized_email)
         if not user:
             raise InvalidCredentialsException()
 

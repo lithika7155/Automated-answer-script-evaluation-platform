@@ -4,6 +4,7 @@ from app.application.dtos.evaluation import (
     QuestionEvaluationDTO,
 )
 from app.domain.interfaces.evaluation_repository import IEvaluationRepository
+from app.domain.services.grading_service import GradingService
 
 
 class ListEvaluationsUseCase:
@@ -23,30 +24,36 @@ class ListEvaluationsUseCase:
             skip=skip,
             limit=limit,
         )
-        return [
-            EvaluationResultResponseDTO(
-                id=res.id,
-                answer_script_id=res.answer_script_id,
-                student_id=res.student_id,
-                exam_id=res.exam_id,
-                total_max_marks=res.total_max_marks,
-                total_score=res.total_score,
-                percentage=res.percentage,
-                question_evaluations=[
-                    QuestionEvaluationDTO(
-                        question_number=q.question_number,
-                        max_marks=q.max_marks,
-                        marks_obtained=q.marks_obtained,
-                        relevance_score=q.relevance_score,
-                        completeness_score=q.completeness_score,
-                        feedback=q.feedback,
-                        missing_concepts=q.missing_concepts,
-                        incorrect_points=q.incorrect_points,
-                    )
-                    for q in res.question_evaluations
-                ],
-                overall_feedback=res.overall_feedback,
-                evaluated_at=res.evaluated_at,
+        output = []
+        for res in results:
+            grade, pf_status = GradingService.calculate_grade_and_status(res.percentage)
+            output.append(
+                EvaluationResultResponseDTO(
+                    id=res.id,
+                    answer_script_id=res.answer_script_id,
+                    student_id=res.student_id,
+                    exam_id=res.exam_id,
+                    total_max_marks=res.total_max_marks,
+                    total_score=res.total_score,
+                    percentage=res.percentage,
+                    grade=grade.value,
+                    pass_fail_status=pf_status.value,
+                    question_evaluations=[
+                        QuestionEvaluationDTO(
+                            question_number=q.question_number,
+                            max_marks=q.max_marks,
+                            marks_obtained=q.marks_obtained,
+                            relevance_score=q.relevance_score,
+                            completeness_score=q.completeness_score,
+                            feedback=q.feedback,
+                            missing_concepts=q.missing_concepts,
+                            incorrect_points=q.incorrect_points,
+                        )
+                        for q in res.question_evaluations
+                    ],
+                    overall_feedback=res.overall_feedback,
+                    evaluated_at=res.evaluated_at,
+                )
             )
-            for res in results
-        ]
+        return output
+

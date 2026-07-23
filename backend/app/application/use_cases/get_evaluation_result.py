@@ -4,6 +4,7 @@ from app.application.dtos.evaluation import (
 )
 from app.domain.exceptions.evaluation import EvaluationNotFoundException
 from app.domain.interfaces.evaluation_repository import IEvaluationRepository
+from app.domain.services.grading_service import GradingService
 
 
 class GetEvaluationResultUseCase:
@@ -23,6 +24,7 @@ class GetEvaluationResultUseCase:
         return self._map_to_dto(result)
 
     def _map_to_dto(self, result) -> EvaluationResultResponseDTO:
+        grade, status = GradingService.calculate_grade_and_status(result.percentage)
         return EvaluationResultResponseDTO(
             id=result.id,
             answer_script_id=result.answer_script_id,
@@ -31,6 +33,8 @@ class GetEvaluationResultUseCase:
             total_max_marks=result.total_max_marks,
             total_score=result.total_score,
             percentage=result.percentage,
+            grade=grade.value,
+            pass_fail_status=status.value,
             question_evaluations=[
                 QuestionEvaluationDTO(
                     question_number=q.question_number,

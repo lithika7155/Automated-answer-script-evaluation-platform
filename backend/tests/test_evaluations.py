@@ -24,7 +24,7 @@ async def test_ai_evaluation_module_flow(async_client: AsyncClient):
     pdf_file = ("exam_script.pdf", b"%PDF-1.4 Student Answer Script", "application/pdf")
     upload_res = await async_client.post(
         "/api/v1/answer-scripts/upload",
-        data={"exam_id": "CS101_MIDTERM"},
+        data={"exam_id": "CS101_MIDTERM", "student_id": "STU_101"},
         files={"file": pdf_file},
         headers=headers,
     )
@@ -66,6 +66,8 @@ async def test_ai_evaluation_module_flow(async_client: AsyncClient):
     assert eval_data["total_score"] > 0
     assert eval_data["percentage"] > 0
     assert len(eval_data["question_evaluations"]) == 2
+    assert "grade" in eval_data and eval_data["grade"] is not None
+    assert "pass_fail_status" in eval_data and eval_data["pass_fail_status"] in ("Pass", "Fail")
 
     q1_eval = eval_data["question_evaluations"][0]
     assert q1_eval["question_number"] == "Q1"

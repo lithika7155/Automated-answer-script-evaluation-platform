@@ -25,3 +25,7 @@ class IEvaluationRepository(ABC):
         limit: int = 100,
     ) -> List[EvaluationResult]:
         pass
+
+    @abstractmethod
+    async def delete(self, evaluation_id: str) -> None:
+        pass

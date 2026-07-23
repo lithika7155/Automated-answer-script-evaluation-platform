@@ -44,6 +44,7 @@ async def test_admin_dashboard_and_security_flow(async_client: AsyncClient):
     dash_data = dash_res.json()
     assert dash_data["total_users"] >= 2
     assert dash_data["total_admins"] >= 1
+    assert "total_exams" in dash_data
     assert dash_data["system_status"] == "Healthy"
 
     deactivate_res = await async_client.patch(

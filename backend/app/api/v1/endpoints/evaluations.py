@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.dependencies.auth import get_current_active_user
+from app.api.dependencies.auth import get_current_active_user, require_roles
 from app.application.dtos.evaluation import (
     EvaluateScriptRequestDTO,
     EvaluationResultResponseDTO,
@@ -16,7 +16,7 @@ from app.domain.exceptions.evaluation import (
 from app.domain.interfaces.ai_evaluator import IAIEvaluatorService
 from app.domain.interfaces.answer_script_repository import IAnswerScriptRepository
 from app.domain.interfaces.evaluation_repository import IEvaluationRepository
-from app.domain.models.user import User
+from app.domain.models.user import User, UserRole
 from app.infrastructure.ai.gemini_evaluator import GeminiAIEvaluator
 from app.infrastructure.database.mongodb import get_mongo_db
 from app.infrastructure.repositories.mongo_answer_script_repository import (
@@ -47,11 +47,11 @@ def get_answer_script_repository() -> IAnswerScriptRepository:
     "/evaluate",
     response_model=EvaluationResultResponseDTO,
     status_code=status.HTTP_201_CREATED,
-    summary="Evaluate student answer script against model answer key via AI",
+    summary="Evaluate student answer script against model answer key via Gemini AI (Faculty/Admin)",
 )
 async def evaluate_answer_script(
     dto: EvaluateScriptRequestDTO,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles([UserRole.FACULTY, UserRole.ADMIN])),
     ai_evaluator: IAIEvaluatorService = Depends(get_ai_evaluator),
     eval_repo: IEvaluationRepository = Depends(get_evaluation_repository),
     script_repo: IAnswerScriptRepository = Depends(get_answer_script_repository),
@@ -85,10 +85,7 @@ async def get_evaluation_by_id(
     try:
         return await use_case.execute_by_id(evaluation_id)
     except EvaluationNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(
@@ -106,10 +103,7 @@ async def get_evaluation_by_script_id(
     try:
         return await use_case.execute_by_script_id(script_id)
     except EvaluationNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(

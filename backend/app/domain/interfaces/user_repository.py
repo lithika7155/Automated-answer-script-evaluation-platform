@@ -21,3 +21,7 @@ class IUserRepository(ABC):
     @abstractmethod
     async def list_all(self, skip: int = 0, limit: int = 100) -> List[User]:
         pass
+
+    @abstractmethod
+    async def delete(self, user_id: str) -> None:
+        pass

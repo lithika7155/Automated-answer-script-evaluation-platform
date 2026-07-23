@@ -1,0 +1,41 @@
+# Python / Pycache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+backend/.venv/
+*.egg-info/
+.pytest_cache/
+sql_app.db
+*.db
+
+# Node / Frontend
+node_modules/
+dist/
+.vite/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Uploads & Temp Data
+uploads/
+backend/uploads/
+
+# Logs
+*.log
+
+# Environment & OS
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# Old projects & IDEs
+old_algoace_backend/
+old_algoace_frontend/
+.vscode/
+.idea/

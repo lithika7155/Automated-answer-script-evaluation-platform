@@ -10,7 +10,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 
-from app.api.dependencies.auth import get_current_active_user
+from app.api.dependencies.auth import get_current_active_user, require_roles
 from app.application.dtos.answer_script import AnswerScriptResponseDTO
 from app.application.use_cases.delete_answer_script import DeleteAnswerScriptUseCase
 from app.application.use_cases.get_answer_script import GetAnswerScriptUseCase
@@ -23,7 +23,7 @@ from app.domain.exceptions.answer_script import (
 )
 from app.domain.interfaces.answer_script_repository import IAnswerScriptRepository
 from app.domain.interfaces.file_storage import IFileStorage
-from app.domain.models.user import User
+from app.domain.models.user import User, UserRole
 from app.infrastructure.database.mongodb import get_mongo_db
 from app.infrastructure.repositories.mongo_answer_script_repository import (
     MongoAnswerScriptRepository,
@@ -46,30 +46,97 @@ def get_file_storage() -> IFileStorage:
     "/upload",
     response_model=AnswerScriptResponseDTO,
     status_code=status.HTTP_201_CREATED,
-    summary="Upload answer script (PDF/JPG/JPEG/PNG)",
+    summary="Upload a single student answer script (Faculty/Admin)",
 )
 async def upload_answer_script(
     exam_id: str = Form(...),
+    student_id: str = Form(..., description="Student roll number / ID provided by faculty"),
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_active_user),
+    question_paper: Optional[UploadFile] = File(None),
+    answer_key: Optional[UploadFile] = File(None),
+    current_user: User = Depends(require_roles([UserRole.FACULTY, UserRole.ADMIN])),
     repo: IAnswerScriptRepository = Depends(get_answer_script_repository),
     storage: IFileStorage = Depends(get_file_storage),
 ) -> AnswerScriptResponseDTO:
     content = await file.read()
+    qp_content = await question_paper.read() if question_paper else None
+    qp_name = question_paper.filename if question_paper else None
+    ak_content = await answer_key.read() if answer_key else None
+    ak_name = answer_key.filename if answer_key else None
+
     use_case = UploadAnswerScriptUseCase(repository=repo, storage=storage)
     try:
         return await use_case.execute(
-            student_id=current_user.id,
+            student_id=student_id,
             exam_id=exam_id,
             filename=file.filename,
             content_type=file.content_type or "application/octet-stream",
             content=content,
+            question_paper_content=qp_content,
+            question_paper_filename=qp_name,
+            answer_key_content=ak_content,
+            answer_key_filename=ak_name,
         )
     except (InvalidFileTypeException, FileTooLargeException) as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/batch-upload",
+    response_model=List[AnswerScriptResponseDTO],
+    status_code=status.HTTP_201_CREATED,
+    summary="Batch upload multiple student answer scripts for one exam (Faculty/Admin)",
+)
+async def batch_upload_answer_scripts(
+    exam_id: str = Form(...),
+    student_ids: str = Form(
+        ...,
+        description="Comma-separated student IDs matching the order of files uploaded",
+    ),
+    files: List[UploadFile] = File(...),
+    question_paper: Optional[UploadFile] = File(None),
+    answer_key: Optional[UploadFile] = File(None),
+    current_user: User = Depends(require_roles([UserRole.FACULTY, UserRole.ADMIN])),
+    repo: IAnswerScriptRepository = Depends(get_answer_script_repository),
+    storage: IFileStorage = Depends(get_file_storage),
+) -> List[AnswerScriptResponseDTO]:
+    sid_list = [s.strip() for s in student_ids.split(",") if s.strip()]
+    if len(sid_list) != len(files):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
+            detail=f"Number of student_ids ({len(sid_list)}) must match number of files ({len(files)}).",
         )
+
+    qp_content = await question_paper.read() if question_paper else None
+    qp_name = question_paper.filename if question_paper else None
+    ak_content = await answer_key.read() if answer_key else None
+    ak_name = answer_key.filename if answer_key else None
+
+    use_case = UploadAnswerScriptUseCase(repository=repo, storage=storage)
+    results: List[AnswerScriptResponseDTO] = []
+
+    for file, sid in zip(files, sid_list):
+        content = await file.read()
+        try:
+            result = await use_case.execute(
+                student_id=sid,
+                exam_id=exam_id,
+                filename=file.filename,
+                content_type=file.content_type or "application/octet-stream",
+                content=content,
+                question_paper_content=qp_content,
+                question_paper_filename=qp_name,
+                answer_key_content=ak_content,
+                answer_key_filename=ak_name,
+            )
+            results.append(result)
+        except (InvalidFileTypeException, FileTooLargeException) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File '{file.filename}': {str(e)}",
+            )
+
+    return results
 
 
 @router.get(
@@ -87,10 +154,7 @@ async def get_answer_script(
     try:
         return await use_case.execute(script_id)
     except AnswerScriptNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(
@@ -111,10 +175,7 @@ async def download_answer_script(
             media_type=script_dto.content_type,
         )
     except AnswerScriptNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get(
@@ -147,7 +208,7 @@ async def list_answer_scripts(
 )
 async def delete_answer_script(
     script_id: str,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_roles([UserRole.FACULTY, UserRole.ADMIN])),
     repo: IAnswerScriptRepository = Depends(get_answer_script_repository),
     storage: IFileStorage = Depends(get_file_storage),
 ):
@@ -156,7 +217,4 @@ async def delete_answer_script(
         await use_case.execute(script_id)
         return {"detail": "Answer script deleted successfully", "id": script_id}
     except AnswerScriptNotFoundException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e),
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

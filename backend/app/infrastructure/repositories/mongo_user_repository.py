@@ -25,6 +25,8 @@ class MongoUserRepository(IUserRepository):
         user_dict = user.model_dump()
         if not user_dict.get("id"):
             user_dict["id"] = str(uuid.uuid4())
+        if user_dict.get("email"):
+            user_dict["email"] = user_dict["email"].lower().strip()
 
         collection = self._collection
         if collection is not None:
@@ -40,10 +42,11 @@ class MongoUserRepository(IUserRepository):
         return User(**user_dict)
 
     async def get_by_email(self, email: str) -> Optional[User]:
+        normalized_email = email.lower().strip()
         collection = self._collection
         if collection is not None:
             try:
-                doc = await collection.find_one({"email": email})
+                doc = await collection.find_one({"email": {"$regex": f"^{normalized_email}$", "$options": "i"}})
                 if doc:
                     if "_id" in doc:
                         doc["id"] = str(doc["_id"])
@@ -52,7 +55,7 @@ class MongoUserRepository(IUserRepository):
                 pass
 
         for item in self._in_memory_store.values():
-            if item.get("email") == email:
+            if item.get("email", "").lower().strip() == normalized_email:
                 return User(**item)
         return None
 
@@ -89,3 +92,12 @@ class MongoUserRepository(IUserRepository):
         all_items = list(self._in_memory_store.values())
         sliced = all_items[skip : skip + limit]
         return [User(**item) for item in sliced]
+
+    async def delete(self, user_id: str) -> None:
+        collection = self._collection
+        if collection is not None:
+            try:
+                await collection.delete_one({"_id": user_id})
+            except Exception:
+                pass
+        self._in_memory_store.pop(user_id, None)

@@ -6,7 +6,7 @@ export const INITIAL_CLASSES = [
   { id: 'CHEM-301', name: 'CHEM-301: Advanced Organic Chemistry', term: 'Fall 2026' },
 ];
 
-export const INITIAL_SECTIONS = ['Sec A', 'Sec B', 'Sec C'];.
+export const INITIAL_SECTIONS = ['Sec A', 'Sec B', 'Sec C'];
 
 export const INITIAL_QUESTIONS = [
   {

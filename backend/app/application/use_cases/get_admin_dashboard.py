@@ -38,11 +38,16 @@ class GetAdminDashboardUseCase:
             )
             pass_rate = round((passed / len(evaluations)) * 100.0, 2)
 
+        exams_set = set(s.exam_id for s in scripts if s.exam_id).union(
+            set(ev.exam_id for ev in evaluations if ev.exam_id)
+        )
+
         return AdminDashboardDTO(
             total_users=len(users),
             total_students=students_count,
             total_faculty=faculty_count,
             total_admins=admin_count,
+            total_exams=len(exams_set),
             total_answer_scripts=len(scripts),
             total_evaluations=len(evaluations),
             overall_average_percentage=overall_avg,
